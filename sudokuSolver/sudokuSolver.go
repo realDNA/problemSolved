@@ -4,8 +4,10 @@ import (
 	"fmt"
 )
 
+const sudokuMaxNum = 9
+
 func getColumn(board [][]byte, column int) []byte {
-	s := make([]byte, 9)
+	s := make([]byte, sudokuMaxNum)
 	for i, v := range board {
 		s[i] = v[column]
 	}
@@ -29,24 +31,21 @@ func countRemainNumbers(sudokuLine []byte) []byte {
 			nums = append(nums[:matchIndex], nums[matchIndex+1:]...)
 		}
 	}
-	//fmt.Println('final nums = ', nums)
 	return nums
 }
 
 func collectNumbersApplyRow(sudokuRow []byte) []byte {
-	//fmt.Println('sudokuRow = ',sudokuRow)
 	return countRemainNumbers(sudokuRow)
 }
 
 func collectNumbersApplycolumn(sudokucolumn []byte) []byte {
-	//fmt.Println('sudokucolumn = ',sudokucolumn)
 	return countRemainNumbers(sudokucolumn)
 }
 
 func collectNumbersApplyGrid(board [][]byte, row int, column int) []byte {
 	gridRowNum := row / 3
 	gridColumnNum := column / 3
-	gridRow := make([]byte, 9)
+	gridRow := make([]byte, sudokuMaxNum)
 	n := 0
 	for i := gridRowNum * 3; i <= gridRowNum*3+2; i++ {
 		for j := gridColumnNum * 3; j <= gridColumnNum*3+2; j++ {
@@ -54,14 +53,10 @@ func collectNumbersApplyGrid(board [][]byte, row int, column int) []byte {
 			n += 1
 		}
 	}
-	//fmt.Print('gridRow = ',gridRow)
 	return countRemainNumbers(gridRow)
 }
 
 func numCanFillInCell(rowNums []byte, columnNums []byte, gridNums []byte) []byte {
-	//fmt.Println('rowNums = ',rowNums)
-	//fmt.Println('columnNums = ',columnNums)
-	//fmt.Println('gridNums = ',gridNums)
 	var setNums []byte
 	isInColumn := false
 	isInGrid := false
@@ -83,21 +78,20 @@ func numCanFillInCell(rowNums []byte, columnNums []byte, gridNums []byte) []byte
 		isInColumn = false
 		isInGrid = false
 	}
-	//fmt.Println('setNums = ',setNums)
 	return setNums
 }
 
-func solveSudokuHelper(board [][]byte) bool {
-	minNumsLen := 10
-	minI := 10
-	minJ := 10
+func solveSudokuHelper(board [][]byte, directlyFillMultipleCell bool) bool {
+	minNumsLen := sudokuMaxNum
+	minI := sudokuMaxNum
+	minJ := sudokuMaxNum
 	isAnyEmpty := false
 	var minCellNums []byte
 	var cellNumsisOnePointArray [][]int
 	var cellNumsisOneNumArray [][]byte
 
-	for i := 0; i < 9; i++ {
-		for j := 0; j < 9; j++ {
+	for i := 0; i < sudokuMaxNum; i++ {
+		for j := 0; j < sudokuMaxNum; j++ {
 			if board[i][j] == '.' {
 				isAnyEmpty = true
 				rowNums := collectNumbersApplyRow(board[i])
@@ -105,71 +99,54 @@ func solveSudokuHelper(board [][]byte) bool {
 				gridNums := collectNumbersApplyGrid(board, i, j)
 				cellNums := numCanFillInCell(rowNums, columnNums, gridNums)
 				cellNumsLen := len(cellNums)
+
 				if cellNumsLen == 0 {
-					fmt.Printf("(%d, %d) cannot be applied number\n", i, j)
 					return false
 				}
+
 				if cellNumsLen < minNumsLen {
 					minNumsLen = cellNumsLen
 					minI = i
 					minJ = j
 					minCellNums = cellNums
 				}
-				if cellNumsLen == 1 {
+
+				if cellNumsLen == 1 && directlyFillMultipleCell {
 					cellNumsisOnePoint := []int{i, j}
 					cellNumsisOnePointArray = append(cellNumsisOnePointArray, cellNumsisOnePoint)
 					cellNumsisOneNumArray = append(cellNumsisOneNumArray, cellNums)
-					fmt.Println("cellNumsisOnePointArray = ", cellNumsisOnePointArray)
-					fmt.Println("cellNumsisOneNumArray = ", cellNumsisOneNumArray)
 				}
-				//fmt.Printf('(%d, %d) = %d\n', i, j, cellNumsLen)
 			}
 		}
 	}
 
-	//fmt.Printf('(%d, %d ) has min len = %d, %v\n', minI, minJ, minNumsLen, minCellNums)
-	//if isAnyEmpty
 	if !isAnyEmpty {
-		fmt.Println("minI > 8 || minJ > 8 ")
-		fmt.Println("isAnyEmpty =  ", isAnyEmpty)
 		return true
 	}
+
 	cellNumsisOnePointArrayLen := len(cellNumsisOnePointArray)
 	if cellNumsisOnePointArrayLen != 0 {
 		for i := 0; i < cellNumsisOnePointArrayLen; i++ {
-			fmt.Println("in one -------- ")
 			rowNum := cellNumsisOnePointArray[i][0]
 			rowColumn := cellNumsisOnePointArray[i][1]
 			board[rowNum][rowColumn] = cellNumsisOneNumArray[i][0]
-			fmt.Printf("board[%d][%d] = %v \n", rowNum, rowColumn, cellNumsisOneNumArray[i][0])
 		}
-		isWork := solveSudokuHelper(board)
-		if isWork == false {
-			for i := 0; i < cellNumsisOnePointArrayLen; i++ {
-				fmt.Println("revert back -------- ")
-				rowNum := cellNumsisOnePointArray[i][0]
-				rowColumn := cellNumsisOnePointArray[i][1]
-				board[rowNum][rowColumn] = '.'
-				//fmt.Printf("board[%d][%d] = %v \n", rowNum, rowColumn, cellNumsisOneNumArray[i][0])
-
-			}
-			return false
-		} else {
-			//fmt.Println('can work')
-			return true
-		}
+		// just one way, no need to check
+		solveSudokuHelper(board, true)
 	} else {
-		for _, v := range minCellNums {
-			fmt.Println("not     .... one -------- ")
-			fmt.Println("minCellNums =  ", minCellNums)
-			fmt.Printf("(%d, %d) = %d\n", minI, minJ, v)
+		for i, v := range minCellNums {
 			board[minI][minJ] = v
-			isWork := solveSudokuHelper(board)
+
+			if i == len(minCellNums) {
+				directlyFillMultipleCell = true
+			} else {
+				directlyFillMultipleCell = false
+			}
+
+			isWork := solveSudokuHelper(board, directlyFillMultipleCell)
 			if isWork == false {
-				//fmt.Println('cannot work')
 				board[minI][minJ] = '.'
 			} else {
-				//fmt.Println('can work')
 				return true
 			}
 		}
@@ -179,7 +156,8 @@ func solveSudokuHelper(board [][]byte) bool {
 }
 
 func solveSudoku(board [][]byte) {
-	solveSudokuHelper(board)
+	directlyFillMultipleCell := true
+	solveSudokuHelper(board, directlyFillMultipleCell)
 	fmt.Println(board)
 }
 
